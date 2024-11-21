@@ -12,6 +12,6 @@ streamlit run app.py
 ```
 
 Through Docker:
-```
+```console
 make up
 ```
