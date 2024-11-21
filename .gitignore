@@ -1,0 +1,8 @@
+.env
+src/auth/auth_config.yaml
+src/oracle_db/wallet_certificates
+nginx/certificates
+nginx/nginx.conf
+__pycache__/
+*.pyc
+*.pyo

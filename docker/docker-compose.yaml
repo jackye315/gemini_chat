@@ -1,0 +1,33 @@
+services:
+  app:
+    container_name: chat
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../src:/app/src
+    environment:
+      oracle_admin_password: ${oracle_admin_password}
+      oracle_db_dsn: ${oracle_db_dsn}
+      oracle_cert_path: ${oracle_cert_path}
+      gemini_api_key: ${gemini_api_key}
+      auth_config_path: ${auth_config_path}
+    networks:
+      - chat_network
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile-nginx
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - chat_network
+
+networks:
+  chat_network:
+    name: chat_network
+    driver: bridge
