@@ -10,15 +10,6 @@ oracle_admin_password = os.environ['oracle_admin_password']
 oracle_db_dsn = os.environ['oracle_db_dsn']
 oracle_cert_path = os.environ['oracle_cert_path']
 
-# db_connection = create_connection(
-#     config_dir=oracle_cert_path,
-#     user="ADMIN",
-#     password=oracle_admin_password,
-#     dsn=oracle_db_dsn,
-#     wallet_dir=oracle_cert_path,
-#     wallet_password=oracle_admin_password
-# )
-
 db_connection_pool = create_connection_pool(
     config_dir=oracle_cert_path,
     user="ADMIN",
