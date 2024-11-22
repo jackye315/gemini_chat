@@ -8,6 +8,16 @@ oracle_cert_path = os.environ['oracle_cert_path']
 def create_connection(config_dir, user, password, dsn, wallet_dir, wallet_password):
      return oracledb.connect(config_dir=config_dir, user=user, password=password, dsn=dsn, wallet_location=wallet_dir, wallet_password=wallet_password)
 
+def create_connection_pool(config_dir, user, password, dsn, wallet_dir, wallet_password, min, max):
+     return oracledb.create_pool(config_dir=config_dir, user=user, password=password, wallet_location=wallet_dir, wallet_password=wallet_password, dsn=dsn, min=min, max=max)
+
+def test_connection(connection):
+     try:
+          connection.ping()
+          return True
+     except:
+          return False
+
 def get_table(table_name:str, connection):
      query = f"""
      SELECT *
@@ -71,7 +81,18 @@ if __name__=="__main__":
           wallet_password=oracle_admin_password
      )
 
-     messages_df = get_table(table_name="MESSAGES", connection=connection)
+     connection_pool = create_connection_pool(
+          config_dir=oracle_cert_path,
+          user="ADMIN",
+          password=oracle_admin_password,
+          dsn=oracle_db_dsn,
+          wallet_dir=oracle_cert_path,
+          wallet_password=oracle_admin_password,
+          min=1,
+          max=10
+     )
+
+     messages_df = get_table(table_name="MESSAGES", connection=connection_pool.acquire())
 
      write_conversation_message(
           table_name="MESSAGES",

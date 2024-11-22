@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import google.generativeai as genai
 from typing import Union, List
-from oracle_db.oracle_db import create_connection, get_table, get_conversation_messages, write_conversation_message, delete_conversation
+from oracle_db.oracle_db import create_connection_pool, test_connection, get_table, get_conversation_messages, write_conversation_message, delete_conversation
 
 import os
 gemini_api_key = os.environ['gemini_api_key']
@@ -10,13 +10,24 @@ oracle_admin_password = os.environ['oracle_admin_password']
 oracle_db_dsn = os.environ['oracle_db_dsn']
 oracle_cert_path = os.environ['oracle_cert_path']
 
-db_connection = create_connection(
+# db_connection = create_connection(
+#     config_dir=oracle_cert_path,
+#     user="ADMIN",
+#     password=oracle_admin_password,
+#     dsn=oracle_db_dsn,
+#     wallet_dir=oracle_cert_path,
+#     wallet_password=oracle_admin_password
+# )
+
+db_connection_pool = create_connection_pool(
     config_dir=oracle_cert_path,
     user="ADMIN",
     password=oracle_admin_password,
     dsn=oracle_db_dsn,
     wallet_dir=oracle_cert_path,
-    wallet_password=oracle_admin_password
+    wallet_password=oracle_admin_password,
+    min=1,
+    max=10
 )
 
 def get_gemini_model(model_name:str="gemini-1.5-flash", safety_settings:dict={}, api_key:str=gemini_api_key):
@@ -32,6 +43,19 @@ def gemini_chat(model, query:Union[str, List[str]], chat=None):
 def chatbot():
     st.title("Bootleg ChatGPT")
 
+    global db_connection_pool
+    if not test_connection(connection=db_connection_pool.acquire()):
+        db_connection_pool = create_connection_pool(
+            config_dir=oracle_cert_path,
+            user="ADMIN",
+            password=oracle_admin_password,
+            dsn=oracle_db_dsn,
+            wallet_dir=oracle_cert_path,
+            wallet_password=oracle_admin_password,
+            min=1,
+            max=10
+        )
+
     # Initialize session state for storing the conversation
     if 'gemini_model' not in st.session_state:
         st.session_state.gemini_model = "gemini-1.5-flash"
@@ -41,7 +65,7 @@ def chatbot():
     if 'previous_conversation' not in st.session_state:
         st.session_state.previous_conversation = ""
     if 'messages' not in st.session_state:
-        conversation_df = get_table("MESSAGES", connection=db_connection)
+        conversation_df = get_table("MESSAGES", connection=db_connection_pool.acquire())
         curr_conversation_df = conversation_df[conversation_df['CONVERSATION_ID']==st.session_state.current_conversation]
         st.session_state.messages = list(curr_conversation_df['MESSAGE_TEXT'])
     if 'gemini_history' not in st.session_state:
@@ -55,7 +79,7 @@ def chatbot():
     model = get_gemini_model(model_name=st.session_state.gemini_model, api_key=gemini_api_key)
     
     if st.session_state.previous_conversation != st.session_state.current_conversation:
-        conversation_df = get_table("MESSAGES", connection=db_connection)
+        conversation_df = get_table("MESSAGES", connection=db_connection_pool.acquire())
         curr_conversation_df = conversation_df[conversation_df['CONVERSATION_ID']==st.session_state.current_conversation]
         st.session_state.messages = list(curr_conversation_df['MESSAGE_TEXT'])
         chat__gemini_history = [{"role":"user", "parts":convo} if index%2==0 else {"role":"model", "parts":convo} for index, convo in enumerate(list(curr_conversation_df['MESSAGE_TEXT']))]
@@ -95,8 +119,8 @@ def chatbot():
             st.session_state.messages.append(bot_reply)
 
             # Write responses to table
-            write_conversation_message(table_name="MESSAGES", conversation_id=st.session_state.current_conversation, message_sender="USER", message=f"You: {user_input}",connection=db_connection)
-            write_conversation_message(table_name="MESSAGES", conversation_id=st.session_state.current_conversation, message_sender="BOT", message=bot_reply,connection=db_connection)
+            write_conversation_message(table_name="MESSAGES", conversation_id=st.session_state.current_conversation, message_sender="USER", message=f"You: {user_input}",connection=db_connection_pool.acquire())
+            write_conversation_message(table_name="MESSAGES", conversation_id=st.session_state.current_conversation, message_sender="BOT", message=bot_reply,connection=db_connection_pool.acquire())
             
             st.session_state.user_input = ""
 
@@ -126,7 +150,7 @@ def chatbot():
         delete_conversation(
           table_name="MESSAGES",
           conversation_id=st.session_state.current_conversation,
-          connection=db_connection
+          connection=db_connection_pool.acquire()
         )
         st.rerun()
 
