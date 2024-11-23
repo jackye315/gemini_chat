@@ -100,20 +100,17 @@ def chatbot():
         return chat_resonse
     
     def chatbot_action():
-        user_input = st.session_state.user_input
         if user_input:
             # Append user message to the conversation history
-            st.session_state.messages.append(f"You: {user_input}")
+            st.session_state.messages.append(user_input)
             
             # Generate chatbot response and append it to the conversation history
             bot_reply = chatbot_response(user_input)
             st.session_state.messages.append(bot_reply)
 
             # Write responses to table
-            write_conversation_message(table_name="MESSAGES", conversation_id=st.session_state.current_conversation, message_sender="USER", message=f"You: {user_input}",connection=db_connection_pool.acquire())
+            write_conversation_message(table_name="MESSAGES", conversation_id=st.session_state.current_conversation, message_sender="USER", message=user_input,connection=db_connection_pool.acquire())
             write_conversation_message(table_name="MESSAGES", conversation_id=st.session_state.current_conversation, message_sender="BOT", message=bot_reply,connection=db_connection_pool.acquire())
-            
-            st.session_state.user_input = ""
 
     # Custom CSS for message styling to allow right-align for user
     st.markdown(
@@ -147,4 +144,11 @@ def chatbot():
 
     # User input
     st.divider()  # Optional divider for a cleaner separation
-    user_input = st.text_input("You:", key="user_input", on_change=chatbot_action)
+    with st.form("input_area", clear_on_submit=True, enter_to_submit=True):
+        user_input = st.text_input("You:", key="user_input")
+        col1, col2 = st.columns([8,1])
+        with col2:
+            submit_button = st.form_submit_button("Enter")
+        if submit_button:
+            chatbot_action()
+            st.rerun()
