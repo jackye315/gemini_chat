@@ -1,13 +1,28 @@
 import requests
 import os
-from dotenv import load_dotenv
-load_dotenv()
 google_api_key = os.environ['google_api_key']
 
 from typing import Union, List
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import JSONFormatter
+
+from pydantic import BaseModel
+
+class Transcript(BaseModel):
+    text: str
+    start: float
+    duration: float
+
+class VideoResult(BaseModel):
+    video_id: str
+    title: str
+    channel: str
+    upload_time: str
+    view_count: str
+    like_count: str
+    comment_count: str
+    transcript: str
 
 def _base_youtube_api(
         url:str,
@@ -52,26 +67,40 @@ def youtube_video_api(
     return _base_youtube_api(url=url, return_parts=return_parts, video_id=video_id, kwargs=kwargs)
 
 def url_to_id(youtube_link:str):
+    """Extract the video id from a provided youtube link."""
     if "shorts" in youtube_link:
         return youtube_link.split('/')[-1]
     else:
         return youtube_link.split("=")[-1]
 
-def get_transcript(video_id:str):
+def get_transcript_with_timestamps(video_id:str, proxy_url:str="http://warp:1080") -> list[Transcript]:
+    """Get the video transcript with time stamps from the provided youtube video id. If provided, use the proxy url to proxy the api call."""
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies={'http': proxy_url, 'https': proxy_url})
     except:
         transcript = [{'text':""}]
+    
     return transcript
 
-def get_full_transcript(transcript):
+def get_full_transcript(video_id:str, proxy_url:str="http://warp:1080") -> str:
+    """Extract the full transcript as a string from the provided youtube video id. If provided, use the proxy url to proxy the api call."""
+    transcript = get_transcript_with_timestamps(video_id=video_id, proxy_url=proxy_url)
     full_transcript = ""
     for part in transcript:
         full_transcript = full_transcript + part['text']
     return full_transcript
 
-def get_full_youtube_data(search_query:str, max_search_results:int = 5):
-    response = youtube_search_api(search_query=search_query, max_results=max_search_results)
+def search_full_youtube_data(search_query:str, max_search_results:int = 5, proxy_url:str="http://warp:1080") -> list[VideoResult]:
+    """Search Youtube and provide real time video results based on the search query. If provided, use the proxy url to proxy the api call.
+    Extract the following information for each video:
+        video id, title, video channel name, upload time, view count, likes count, comment count, and full video transcript
+    
+    Arguments:
+        search_query: String of the topic to search youtube for using the Google Youtube search API
+        max_search_results: Number of results to return. If none provided, default to 5
+        proxy_url: String of the proxy url to use when calling the API from if provided
+    """
+    response = youtube_search_api(search_query=search_query, max_results=int(max_search_results))
     response.json()
     results_list = []
     results = response.json()['items']
@@ -86,27 +115,29 @@ def get_full_youtube_data(search_query:str, max_search_results:int = 5):
         results_dict['like_count'] = video_results[0]['statistics']['likeCount']
         results_dict['comment_count'] = video_results[0]['statistics']['commentCount']
 
-        transcript = get_transcript(results_dict['video_id'])
-        results_dict['transcript'] = get_full_transcript(transcript=transcript)
+        results_dict['transcript'] = get_full_transcript(video_id=results_dict['video_id'], proxy_url=proxy_url)
         results_list.append(results_dict)
     return results_list
 
 if __name__=="__main__":
-    from gemini_api import get_gemini_model, gemini_call, gemini_chat
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    
+    from genai.gemini_api import get_gemini_model, gemini_call, gemini_chat
     gemini_model = get_gemini_model()
 
-    # Single video given youtube link
-    video_link = "https://www.youtube.com/watch?v=oNO6CJ6GseE"
-    video_id = url_to_id(youtube_link=video_link)
-    transcript = get_transcript(video_id)
-    full_transcript = get_full_transcript(transcript)
+    # # Single video given youtube link
+    # video_link = "https://www.youtube.com/watch?v=Jm8KiTUhzNQ"
+    # video_id = url_to_id(youtube_link=video_link)
+    # full_transcript = get_full_transcript(video_id=video_id,proxy_url="http://warp:1080")
 
-    question = "Given this information, what unit should I buff?"
-    # chat, response = gemini_chat(model=gemini_model, chat=None, query=[full_transcript, question])
-    print(gemini_call(gemini_model,[full_transcript,question]))
+    # question = "Given this information, describe and summarize this video"
+    # # chat, response = gemini_chat(model=gemini_model, chat=None, query=[full_transcript, question])
+    # print(gemini_call(gemini_model,[full_transcript,question]))
 
-    # # Youtube Search return multiple videos
-    # topic = "best linen pants men"
-    # results_list = get_full_youtube_data(search_query=topic, max_search_results=10)
-    # question = "Given this information, what are the best linen pant brands for the money?"
-    # print(gemini_call(gemini_model,[*[result['transcript'] for result in results_list],question]))
+    # Youtube Search return multiple videos
+    topic = "best linen pants men"
+    results_list = search_full_youtube_data(search_query=topic, max_search_results=10, proxy_url="http://warp:1080")
+    question = "Given this information, what are the best linen pant brands for the money?"
+    print(gemini_call(gemini_model,[*[result['transcript'] for result in results_list],question]))

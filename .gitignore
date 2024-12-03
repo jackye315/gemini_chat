@@ -1,8 +1,10 @@
 .env
 src/auth/auth_config.yaml
 src/oracle_db/wallet_certificates
+src/.vscode
 nginx/certificates
 nginx/nginx.conf
+docker/data
 __pycache__/
 *.pyc
 *.pyo
