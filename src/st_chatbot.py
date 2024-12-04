@@ -3,6 +3,8 @@ import pandas as pd
 import google.generativeai as genai
 from typing import Union, List
 from oracle_db.oracle_db import create_connection_pool, test_connection, get_table, get_conversation_messages, write_conversation_message, delete_conversation
+from genai.gemini_api import get_gemini_model, gemini_chat, gemini_function_call
+from agent import youtube_agent, agent_chat
 
 import os
 gemini_api_key = os.environ['gemini_api_key']
@@ -21,15 +23,15 @@ db_connection_pool = create_connection_pool(
     max=10
 )
 
-def get_gemini_model(model_name:str="gemini-1.5-flash", safety_settings:dict={}, api_key:str=gemini_api_key):
-    genai.configure(api_key=api_key)
-    return genai.GenerativeModel(model_name, safety_settings=safety_settings)
+# def get_gemini_model(model_name:str="gemini-1.5-flash", safety_settings:dict={}, api_key:str=gemini_api_key):
+#     genai.configure(api_key=api_key)
+#     return genai.GenerativeModel(model_name, safety_settings=safety_settings)
 
-def gemini_chat(model, query:Union[str, List[str]], chat=None):
-    if not chat:
-        chat = model.start_chat()
-    response = chat.send_message(query)
-    return chat, response.text
+# def gemini_chat(model, query:Union[str, List[str]], chat=None):
+#     if not chat:
+#         chat = model.start_chat()
+#     response = chat.send_message(query)
+#     return chat, response.text
 
 def chatbot():
     st.title("Bootleg ChatGPT")
@@ -51,6 +53,8 @@ def chatbot():
     if 'gemini_model' not in st.session_state:
         st.session_state.gemini_model = "gemini-1.5-flash"
         model = get_gemini_model(model_name=st.session_state.gemini_model, api_key=gemini_api_key)
+    if 'agent' not in st.session_state:
+        st.session_state.agent = "base"
     if 'current_conversation' not in st.session_state:
         st.session_state.current_conversation = "A"
     if 'previous_conversation' not in st.session_state:
@@ -73,14 +77,19 @@ def chatbot():
         conversation_df = get_table("MESSAGES", connection=db_connection_pool.acquire())
         curr_conversation_df = conversation_df[conversation_df['CONVERSATION_ID']==st.session_state.current_conversation]
         st.session_state.messages = list(curr_conversation_df['MESSAGE_TEXT'])
-        chat__gemini_history = [{"role":"user", "parts":convo} if index%2==0 else {"role":"model", "parts":convo} for index, convo in enumerate(list(curr_conversation_df['MESSAGE_TEXT']))]
-        st.session_state.gemini_history = model.start_chat(history=chat__gemini_history)
-    
-    # Define your list of options
-    options = ["gemini-1.5-flash", "gemini-1.5-pro"]
+        chat_gemini_history = [{"role":"user", "parts":convo} if index%2==0 else {"role":"model", "parts":convo} for index, convo in enumerate(list(curr_conversation_df['MESSAGE_TEXT']))]
+        st.session_state.gemini_history = model.start_chat(history=chat_gemini_history)
+        st.session_state.previous_conversation = st.session_state.current_conversation
     with st.sidebar:
-        selected_option = st.radio('Gemini Model:', options, index=0)
+        # Select model, agent, and conversation
+        model_options = ["gemini-1.5-flash", "gemini-1.5-pro"]
+        selected_option = st.radio('Gemini Model:', model_options, index=0)
         st.session_state.gemini_model = selected_option
+        
+        agent_options = ["Base", "Youtube"]
+        selected_agent = st.radio('Agent:', agent_options, index=0)
+        st.session_state.agent = selected_agent.lower()
+        
         if st.button("Conversation A"):
             st.session_state.previous_conversation = st.session_state.current_conversation
             st.session_state.current_conversation = "A"
@@ -96,11 +105,24 @@ def chatbot():
 
     # Function to simulate a chatbot response
     def chatbot_response(user_input):
-        st.session_state.gemini_history, chat_resonse = gemini_chat(model=model, query=user_input, chat=st.session_state.gemini_history)
-        return chat_resonse
+        if st.session_state.agent == 'base':
+            st.session_state.gemini_history, chat_response = gemini_chat(model=model, query=user_input, chat=st.session_state.gemini_history)
+        elif st.session_state.agent == 'youtube':
+            youtube_bot = youtube_agent()
+            youtube_model = get_gemini_model(
+                    model_name=st.session_state.gemini_model, 
+                    api_key=gemini_api_key, 
+                    tools=youtube_bot.controls, 
+                    system_instruction=youtube_bot.instruction
+                )
+            st.session_state.gemini_history, chat_response = agent_chat(model=youtube_model, query=user_input, chat=st.session_state.gemini_history, agent=youtube_bot)
+        return chat_response.text
     
     def chatbot_action():
         if user_input:
+            # if 'youtube' in user_input:
+            #     st.session_state.agent = 'youtube'
+            
             # Append user message to the conversation history
             st.session_state.messages.append(user_input)
             
