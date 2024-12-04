@@ -107,6 +107,7 @@ def search_full_youtube_data(search_query:str, max_search_results:int = 5, proxy
     for result in results:
         results_dict = {}
         results_dict['video_id'] = result['id']['videoId']
+        results_dict['link'] = f"https://www.youtube.com/watch?v={results_dict['video_id']}"
         results_dict['title'] = result['snippet']['title']
         results_dict['channel'] = result['snippet']['channelTitle']
         results_dict['upload_time'] = result['snippet']['publishedAt']
@@ -124,17 +125,16 @@ if __name__=="__main__":
     import os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
-    from genai.gemini_api import get_gemini_model, gemini_call, gemini_chat
+    from genai.gemini_api import get_gemini_model, gemini_call
     gemini_model = get_gemini_model()
 
-    # # Single video given youtube link
-    # video_link = "https://www.youtube.com/watch?v=Jm8KiTUhzNQ"
-    # video_id = url_to_id(youtube_link=video_link)
-    # full_transcript = get_full_transcript(video_id=video_id,proxy_url="http://warp:1080")
+    # Single video given youtube link
+    video_link = "https://www.youtube.com/watch?v=Jm8KiTUhzNQ"
+    video_id = url_to_id(youtube_link=video_link)
+    full_transcript = get_full_transcript(video_id=video_id,proxy_url="http://warp:1080")
 
-    # question = "Given this information, describe and summarize this video"
-    # # chat, response = gemini_chat(model=gemini_model, chat=None, query=[full_transcript, question])
-    # print(gemini_call(gemini_model,[full_transcript,question]))
+    question = "Given this information, describe and summarize this video"
+    print(gemini_call(gemini_model,[full_transcript,question]))
 
     # Youtube Search return multiple videos
     topic = "best linen pants men"
