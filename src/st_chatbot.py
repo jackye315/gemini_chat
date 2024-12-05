@@ -4,7 +4,7 @@ import google.generativeai as genai
 from typing import Union, List
 from oracle_db.oracle_db import create_connection_pool, test_connection, get_table, get_conversation_messages, write_conversation_message, delete_conversation
 from genai.gemini_api import get_gemini_model, gemini_chat, gemini_function_call
-from agent import youtube_agent, agent_chat
+from agent import youtube_agent, reddit_agent, agent_chat
 
 import os
 gemini_api_key = os.environ['gemini_api_key']
@@ -70,7 +70,6 @@ def chatbot():
         st.session_state.user_input = ""
 
     st.write("Conversation " + st.session_state.current_conversation)
-
     model = get_gemini_model(model_name=st.session_state.gemini_model, api_key=gemini_api_key)
     
     if st.session_state.previous_conversation != st.session_state.current_conversation:
@@ -86,7 +85,7 @@ def chatbot():
         selected_option = st.radio('Gemini Model:', model_options, index=0)
         st.session_state.gemini_model = selected_option
         
-        agent_options = ["Base", "Youtube"]
+        agent_options = ["Base", "Reddit", "Youtube"]
         selected_agent = st.radio('Agent:', agent_options, index=0)
         st.session_state.agent = selected_agent.lower()
         
@@ -116,13 +115,19 @@ def chatbot():
                     system_instruction=youtube_bot.instruction
                 )
             st.session_state.gemini_history, chat_response = agent_chat(model=youtube_model, query=user_input, chat=st.session_state.gemini_history, agent=youtube_bot)
+        elif st.session_state.agent == 'reddit':
+            reddit_bot = reddit_agent()
+            reddit_model = get_gemini_model(
+                    model_name=st.session_state.gemini_model, 
+                    api_key=gemini_api_key, 
+                    tools=reddit_bot.controls, 
+                    system_instruction=reddit_bot.instruction
+                )
+            st.session_state.gemini_history, chat_response = agent_chat(model=reddit_model, query=user_input, chat=st.session_state.gemini_history, agent=reddit_bot)
         return chat_response.text
     
     def chatbot_action():
-        if user_input:
-            # if 'youtube' in user_input:
-            #     st.session_state.agent = 'youtube'
-            
+        if user_input:            
             # Append user message to the conversation history
             st.session_state.messages.append(user_input)
             
@@ -151,7 +156,7 @@ def chatbot():
     for i, message in enumerate(st.session_state.messages):
         role = "user" if i % 2 == 0 else "bot"  # Alternate between user and bot messages
         with st.chat_message(role):
-            st.write(message)
+            st.write(message.replace("$", "\$"))
         
     # Clear button
     if st.button("Clear", key="clear_button"):
