@@ -44,16 +44,16 @@ services:
       - ./data:/var/lib/cloudflare-warp
     networks:
       - chat_network
-  # nginx:
-  #   build:
-  #     context: ..
-  #     dockerfile: docker/Dockerfile-nginx
-  #   container_name: nginx
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   networks:
-  #     - chat_network
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile-nginx
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - chat_network
 
 networks:
   chat_network:
