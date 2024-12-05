@@ -70,7 +70,6 @@ def chatbot():
         st.session_state.user_input = ""
 
     st.write("Conversation " + st.session_state.current_conversation)
-
     model = get_gemini_model(model_name=st.session_state.gemini_model, api_key=gemini_api_key)
     
     if st.session_state.previous_conversation != st.session_state.current_conversation:
