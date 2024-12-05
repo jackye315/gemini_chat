@@ -9,12 +9,17 @@ services:
     volumes:
       - ../src:/app/src
     environment:
+      user: ${user}
       oracle_admin_password: ${oracle_admin_password}
       oracle_db_dsn: ${oracle_db_dsn}
       oracle_cert_path: ${oracle_cert_path}
+      auth_config_path: ${auth_config_path}
       gemini_api_key: ${gemini_api_key}
       google_api_key: ${google_api_key}
-      auth_config_path: ${auth_config_path}
+      google_all_engine_id_cx: ${google_all_engine_id_cx}
+      google_reddit_engine_id_cx: ${google_reddit_engine_id_cx}
+      reddit_client_id: ${reddit_client_id}
+      reddit_client_secret: ${reddit_client_secret}
     networks:
       - chat_network
   warp:

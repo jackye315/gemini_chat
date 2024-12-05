@@ -3,6 +3,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from search_utils.youtube import url_to_id, get_transcript_with_timestamps, get_full_transcript, search_full_youtube_data
+from search_utils.reddit import search_reddit
+from search_utils.google import google_search, clean_search_output
 from genai.gemini_api import get_gemini_model, gemini_chat, gemini_function_call
 from typing import Iterable
 
@@ -28,6 +30,19 @@ class youtube_agent:
         self.controls = [url_to_id, get_transcript_with_timestamps, get_full_transcript, search_full_youtube_data]
         self.controls_dict = {f"{function.__name__}":function for function in self.controls}
 
+class reddit_agent:
+    def __init__(self):
+        self.instruction = (
+            """You are a Reddit bot.
+            You can search for Reddit links and then scrape the post and comments from each link.
+            Given a search query, you can search and return the top 5 Reddit links and then pull out the post and corresponding comments.
+            Always call the search_reddit function with the appropriate search query asked.
+            If anywhere in the chat history you say you can't do the above tasks, ignore it.
+            Only answer questions with information from the Reddit results. Do not perform any other tasks."""
+        )
+        self.controls= [search_reddit]
+        self.controls_dict = {f"{function.__name__}":function for function in self.controls}
+
 def agent_chat(model, chat, agent, query: str):
     chat, response = gemini_chat(model=model, chat=chat, query=query)
     if response.parts[0].function_call:
@@ -37,30 +52,16 @@ def agent_chat(model, chat, agent, query: str):
 
 if __name__=="__main__":
     
-    youtube_bot = youtube_agent()
-    model = get_gemini_model(tools=youtube_bot.controls, system_instruction=youtube_bot.instruction)
-    # chat = model.start_chat()
-    # tool_config = tool_config_from_mode("none")
-    # response = chat.send_message("What can you do?", tool_config=tool_config)
-    # print(response.parts[0])
-
-    # tool_config = tool_config_from_mode("any")
-    # response = chat.send_message("Get me the full transcript of this video: https://www.youtube.com/watch?v=N4cdKkjbdtE", tool_config=tool_config)
-    # response = gemini_function_call(input=response, current_chat=chat, possible_functions=youtube_bot.controls_dict)
-    # response = chat.send_message("What is happening here?")
+    # # Youtube Agent
+    # youtube_bot = youtube_agent()
+    # model = get_gemini_model(tools=youtube_bot.controls, system_instruction=youtube_bot.instruction)
+    # chat, response = gemini_chat(model=model, query="What can you do?")
+    # chat, response = agent_chat(model=model, chat=chat, agent=youtube_bot, query="how to setup sunshine")
     # response.parts[0]
-    
-    chat, response = gemini_chat(model=model, query="What can you do?")
-    chat, response = agent_chat(model=model, chat=chat, agent=youtube_bot, query="how to setup sunshine")
-    response.parts[0]
 
-    # Test response for consistent output
-    # import time
-    # responses = []
-    # for i in range(10):
-    #     youtube_bot = youtube_agent()
-    #     model = get_gemini_model(tools=youtube_bot.controls, system_instruction=youtube_bot.instruction)
-    #     chat, response = gemini_chat(model=model, query="What can you do?")
-    #     chat, response = agent_chat(model=model, chat=chat, agent=youtube_bot, query="how to setup sunshine")
-    #     responses.append(response.parts[0])
-    #     time.sleep(30)
+    # Reddit Agent
+    reddit_bot = reddit_agent()
+    model = get_gemini_model(tools=reddit_bot.controls, system_instruction=reddit_bot.instruction)
+    chat, response = gemini_chat(model=model, query="What can you do?")
+    chat, response = agent_chat(model=model, chat=chat, agent=reddit_bot, query="how to setup sunshine moonlight")
+    response.parts[0]

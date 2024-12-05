@@ -2,7 +2,7 @@ import requests
 import os
 google_api_key = os.environ['google_api_key']
 
-from typing import Union, List
+from typing import Union
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import JSONFormatter
@@ -59,7 +59,7 @@ def youtube_search_api(
     return _base_youtube_api(url=url, return_parts=return_parts, search_query=search_query, max_results=max_results, kwargs=kwargs)
 
 def youtube_video_api(
-        video_id:Union[str, List[str]],
+        video_id:Union[str, list[str]],
         url:str = "https://www.googleapis.com/youtube/v3/videos",
         return_parts:str="statistics",
         **kwargs
