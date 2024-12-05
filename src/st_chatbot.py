@@ -157,7 +157,7 @@ def chatbot():
     for i, message in enumerate(st.session_state.messages):
         role = "user" if i % 2 == 0 else "bot"  # Alternate between user and bot messages
         with st.chat_message(role):
-            st.write(message)
+            st.write(message.replace("$", "\$"))
         
     # Clear button
     if st.button("Clear", key="clear_button"):
