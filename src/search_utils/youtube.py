@@ -112,9 +112,9 @@ def search_full_youtube_data(search_query:str, max_search_results:int = 5, proxy
         results_dict['channel'] = result['snippet']['channelTitle']
         results_dict['upload_time'] = result['snippet']['publishedAt']
         video_results = youtube_video_api(video_id=results_dict['video_id']).json()['items']
-        results_dict['view_count'] = video_results[0]['statistics']['viewCount']
-        results_dict['like_count'] = video_results[0]['statistics']['likeCount']
-        results_dict['comment_count'] = video_results[0]['statistics']['commentCount']
+        results_dict['view_count'] = video_results[0]['statistics']['viewCount'] if 'viewCount' in video_results[0]['statistics'] else 0
+        results_dict['like_count'] = video_results[0]['statistics']['likeCount'] if 'likeCount' in video_results[0]['statistics'] else 0
+        results_dict['comment_count'] = video_results[0]['statistics']['commentCount'] if 'commentCount' in video_results[0]['statistics'] else 0
 
         results_dict['transcript'] = get_full_transcript(video_id=results_dict['video_id'], proxy_url=proxy_url)
         results_list.append(results_dict)
